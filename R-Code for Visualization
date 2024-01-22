@@ -1,0 +1,69 @@
+library(dplyr)
+library(coin)
+library(moments)
+library(ggplot2)
+library(scales)
+library(tidyverse)
+
+total_data <- read.csv("combined_data_cyclistics.csv")
+
+
+# ----NUMBER OF BIKE TRIPS PER MONTH-----
+aggregated_data_cm <- total_data %>%
+  group_by(customer_type, month) %>%
+  summarise(total_rides = sum(ride_count))
+
+ggplot(aggregated_data_cm, aes(x = factor(month ,levels = c("jan", "feb", "mar", "apr", "may", "jun","jul","aug","sep","oct","nov","dec")), 
+                               y = total_rides, fill = customer_type)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  labs(title = "Number of Bike Trips Per Month",
+       x = "Month",
+       y = "Number of Bike Trips") +
+  scale_fill_manual(values = c("steelblue", "darkorange"))+
+  scale_y_continuous(labels = comma)
+
+
+# ----NUMBER OF BIKE TRIPS PER DAY-----
+aggregated_data_cd <- total_data %>%
+  group_by(customer_type, days_of_week) %>%
+  summarise(total_rides = sum(ride_count))
+
+ggplot(aggregated_data_cd, aes(x = factor(days_of_week ,levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat","Sun")), 
+                               y = total_rides, fill = customer_type)) +
+  geom_bar(stat = "identity", position = "dodge") +  
+  labs(title = "Number of Bike Trips Per Day in a Week",
+       x = "Weekday",
+       y = "Number of Bike Trips") +
+  scale_fill_manual(values = c("steelblue", "darkorange"))+
+  scale_y_continuous(labels = comma)
+
+
+# ----AVERAGE LENGTH OF BIKE TRIPS PER CUSTOMER TYPE----
+avg_length <- total_data %>%
+  group_by(customer_type) %>%
+  summarise(avg_length_rides = mean(ride_length) / 60)
+
+avg_length$avg_length_rides <- round(avg_length$avg_length_rides, 0)
+
+
+ggplot(avg_length, aes(x = customer_type, y = avg_length_rides, fill = customer_type)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.6) +
+  labs(title = "Average Length of Bike Trips Per Customer", x = "Customer Type", y = "Average Length of Bike Trips(mins)") +
+  scale_fill_manual(values = c("steelblue", "darkorange"))
+
+
+
+
+# ----NUMBER OF BIKE TRIPS PER RIDE TYPE-----
+every_rides_summarized <- total_data %>%
+  group_by(ride_type, customer_type) %>%
+  summarise(every_rides_sum = sum(ride_count))
+
+ggplot(every_rides_summarized, aes(x = ride_type, y = every_rides_sum, fill = customer_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Number of Bike Trips Per Ride Type", x = "Ride Type", y = "Number of Trips") +
+  scale_fill_manual(values = c("steelblue", "darkorange"))+
+  scale_y_continuous(labels = comma)
+
+
+
