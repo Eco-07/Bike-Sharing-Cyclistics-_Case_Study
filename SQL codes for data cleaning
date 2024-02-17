@@ -1,1 +1,128 @@
+/*----to add columns on the table--*/
+ALTER TABLE jan
+ADD COLUMN ride_length NUMERIC;
 
+ALTER TABLE jan
+ADD days_no NUMERIC;
+
+ALTER TABLE jan
+ADD converted_weekdays NUMERIC;
+
+ALTER TABLE jan
+ADD days_of_week TEXT;
+
+ALTER TABLE jan
+ADD time NUMERIC;
+
+/*---to convert the data into computed seconds of bike trips==*/
+UPDATE jan
+SET ride_length = (strftime('%s',ended_at) - strftime('%s', started_at));
+
+/*---to convert the date into days, keep in mind that 0 is sun and 6 is  sat--*/
+UPDATE jan
+SET days_no  = strftime("%w", started_at);
+
+/*--IN THIS CODE, I CONVERTED MONDAY AS O - START OF THE WEEK---*/
+UPDATE jan
+   SET converted_weekdays = CASE 
+   WHEN days_no = 0 THEN 6 
+   WHEN days_no = 1 THEN 0 
+   WHEN days_no = 2 THEN 1 
+   WHEN days_no = 3 THEN 2 
+   WHEN days_no = 4 THEN 3 
+   WHEN days_no = 5 THEN 4 
+   WHEN days_no = 6 THEN 5 
+   ELSE "Eror"
+END;
+
+UPDATE jan
+   SET days_of_week = CASE 
+   WHEN converted_weekdays = 0 THEN "Mon" 
+   WHEN converted_weekdays = 1 THEN "Tue" 
+   WHEN converted_weekdays = 2 THEN "Wed" 
+   WHEN converted_weekdays = 3 THEN "Thu" 
+   WHEN converted_weekdays = 4 THEN "Fri" 
+   WHEN converted_weekdays = 5 THEN "Sat" 
+   WHEN converted_weekdays = 6 THEN "Sun" 
+   ELSE "Eror"
+END;
+
+/*---CODE BELOW IS THE PM AND AM format of time--*/
+
+UPDATE jan
+   SET time = CASE WHEN strftime("%H", started_at) % 12 = 0 THEN 12 
+   ELSE strftime("%H", started_at) % 12 END 
+|| ":" || 
+    strftime("%M", started_at) 
+|| " " || 
+CASE WHEN 
+    strftime("%H", started_at) - 0 >= 12 THEN "PM" 
+ELSE "AM" END;
+
+
+
+
+======DATA AGGREGATION=====
+
+--below is a separeted table---
+CREATE TABLE final_data_every_rides (
+    month TEXT,
+    ride_type TEXT,
+    ride_count INTEGER,
+    customer_type TEXT,
+    ride_length INTEGER
+);
+
+INSERT INTO final_data_every_rides (month, ride_type, ride_count, customer_type, ride_length)
+SELECT "jan" AS month, 'classic_bike' AS ride_type, COUNT(ride_id) AS ride_count, 'casual' AS customer_type, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'casual' and rideable_type = 'classic_bike' GROUP BY customer_type
+UNION ALL
+SELECT "jan" AS month, 'docked_bike' AS ride_type, COUNT(ride_id) AS ride_count, 'casual' AS customer_type, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'casual' and rideable_type = 'docked_bike' GROUP BY customer_type
+UNION ALL
+SELECT "jan" AS month, 'electric_bike' AS ride_type, COUNT(ride_id) AS ride_count, 'casual' AS customer_type, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'casual' and rideable_type = 'electric_bike' GROUP BY customer_type
+UNION ALL
+SELECT "jan" AS month, 'classic_bike' AS ride_type, COUNT(ride_id) AS ride_count, 'member' AS customer_type, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'member' and rideable_type = 'classic_bike' GROUP BY customer_type
+UNION ALL
+SELECT "jan" AS month, 'docked_bike' AS ride_type, COUNT(ride_id) AS ride_count, 'member' AS customer_type, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'member' and rideable_type = 'docked_bike' GROUP BY customer_type
+UNION ALL
+SELECT "jan" AS month, 'electric_bike' AS ride_type, COUNT(ride_id) AS ride_count, 'member' AS customer_type, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'member' and rideable_type = 'electric_bike' GROUP BY customer_type;
+------gchfd------
+CREATE TABLE final_data (
+    month TEXT,
+    ride_type TEXT,
+    ride_count INTEGER,
+    customer_type TEXT,
+    days_of_week TEXT,
+    ride_length INTEGER
+);
+INSERT INTO final_data (month, ride_type, ride_count, customer_type, days_of_week, ride_length)
+SELECT "jan" AS month, 'total_rides' AS ride_type, COUNT(ride_id) AS ride_count, 'casual' AS customer_type, days_of_week, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'casual' GROUP BY days_of_week
+UNION ALL
+SELECT "jan" AS month, 'total_rides' AS ride_type, COUNT(ride_id) AS ride_count, 'member' AS customer_type, days_of_week, AVG(ride_length) AS ride_length FROM jan WHERE member_casual = 'member' GROUP BY days_of_week;
+
+
+CREATE TABLE combined_data_2 (
+    month TEXT,
+    ride_type TEXT,
+    ride_count INTEGER,
+    customer_type TEXT,
+    days_of_week TEXT,
+    ride_length INTEGER,
+    ride_time INTEGER,
+    started_at INTEGER,
+    ended_at INTEGER
+);
+
+INSERT INTO combined_data_2 (month, ride_type, ride_count, customer_type, days_of_week, ride_length, ride_time, started_at, ended_at)
+SELECT
+    "dec" AS month,
+    rideable_type AS ride_type,
+    COUNT(ride_id) AS ride_count,
+    member_casual AS customer_type,
+    days_of_week,
+    AVG(ride_length) AS ride_length,
+    time AS ride_time,
+    started_at,
+    ended_at
+FROM dec
+WHERE member_casual IN ('casual', 'member')
+GROUP BY month, ride_type, customer_type, days_of_week;
